@@ -2,6 +2,7 @@ const http = require('http');
 const { program } = require('commander');
 const fs = require('fs').promises;
 const path = require('path');
+const superagent = require('superagent');
 
 program
   .option('-h, --host <host>', 'Server host', '127.0.0.1')
@@ -38,9 +39,16 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'image/jpeg' });
       res.end(data);
     } catch (err) {
-      // If image not found in cache
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('File not found');
+      
+      try {
+        const response = await superagent.get(`https://http.cat/${statusCode}`);
+        await fs.writeFile(filePath, response.body); 
+        res.writeHead(200, { 'Content-Type': 'image/jpeg' });
+        res.end(response.body);
+      } catch (catError) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Image not found on http.cat or cache');
+      }
     }
   } else if (req.method === 'PUT') {
     // 🔹 Save image
@@ -63,7 +71,7 @@ const server = http.createServer(async (req, res) => {
       res.end('File not found');
     }
   } else {
-    
+    // ❌ Unknown method
     res.writeHead(405, { 'Content-Type': 'text/plain' });
     res.end('Method not allowed');
   }
